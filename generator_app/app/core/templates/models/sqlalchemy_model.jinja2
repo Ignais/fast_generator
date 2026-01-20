@@ -1,0 +1,49 @@
+"""{{ model.description or (model.name + " model") }}."""
+from sqlalchemy import Column, {{ model.imports|reject("equalto", "UUID")|join(", ") }}
+{%- if model.has_uuid %}
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
+{%- endif %}
+{%- if model.has_foreign_keys or model.has_many_to_many %}
+from sqlalchemy import ForeignKey
+{%- endif %}
+{%- if model.has_relationships or model.has_many_to_many %}
+from sqlalchemy.orm import relationship
+{%- endif %}
+{%- if model.has_many_to_many %}
+from sqlalchemy import Table
+{%- endif %}
+{%- for tbl in model.m2m_imports %}
+from app.models.{{ tbl.module }} import {{ tbl.table_name }}
+{%- endfor %}
+from app.db.base_class import Base
+
+{%- for m2m in model.many_to_many_tables %}
+{{ m2m.table_name }} = Table(
+    "{{ m2m.table_name }}",
+    Base.metadata,
+    Column("{{ m2m.left_key }}", ForeignKey("{{ m2m.left_fk }}"), primary_key=True),
+    Column("{{ m2m.right_key }}", ForeignKey("{{ m2m.right_fk }}"), primary_key=True),
+)
+{%- endfor %}
+
+class {{ model.name }}(Base):
+    __tablename__ = "{{ model.table_name }}"
+
+    {%- for field in model.fields %}
+    {{ field.name }} = Column(
+        {{ field.sa_type }}{% if field.sa_type == "UUID" %}(as_uuid=True){% endif %}{% if field.primary_key %}, primary_key=True{% endif %}{% if field.default is not none %}, default={{ field.default }}{% endif %}{% if field.foreign_key %}, ForeignKey("{{ field.foreign_key }}"){% endif %}{% if not field.nullable %}, nullable=False{% endif %}
+    )
+    {%- endfor %}
+
+    {%- for rel in model.relationships %}
+    {{ rel.name }} = relationship("{{ rel.target }}", back_populates="{{ rel.back_populates }}")
+    {%- endfor %}
+
+    {%- for m2m in model.many_to_many %}
+    {{ m2m.name }} = relationship(
+        "{{ m2m.target }}",
+        secondary={{ m2m.table_name }},
+        back_populates="{{ m2m.back_populates }}"
+    )
+    {%- endfor %}

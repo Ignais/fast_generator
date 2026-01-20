@@ -1,0 +1,56 @@
+import re
+import secrets
+from datetime import datetime, timezone
+from pydantic import EmailStr
+
+
+def normalize_email(email: str) -> str:
+    """
+    Normaliza un email convirtiéndolo a minúsculas y eliminando espacios.
+    """
+    return EmailStr(email.strip().lower())
+
+
+def normalize_username(username: str) -> str:
+    """
+    Normaliza un username eliminando espacios y convirtiéndolo a minúsculas.
+    """
+    return username.strip().lower()
+
+
+def generate_code(length: int = 6) -> str:
+    """
+    Genera un código aleatorio seguro, útil para MFA, recuperación de contraseña, etc.
+    """
+    return ''.join(secrets.choice("0123456789") for _ in range(length))
+
+
+def utc_now() -> datetime:
+    """
+    Retorna la fecha y hora actual en UTC.
+    """
+    return datetime.now(timezone.utc)
+
+
+def validate_password_strength(password: str) -> bool:
+    """
+    Valida la fortaleza mínima de una contraseña.
+    Reglas:
+    - Mínimo 8 caracteres
+    - Al menos una mayúscula
+    - Al menos una minúscula
+    - Al menos un número
+    """
+    if len(password) < 8:
+        return False
+
+    if not re.search(r"[A-Z]", password):
+        return False
+
+    if not re.search(r"[a-z]", password):
+        return False
+
+    if not re.search(r"[0-9]", password):
+        return False
+
+    return True

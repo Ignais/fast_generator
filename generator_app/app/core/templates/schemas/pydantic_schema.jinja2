@@ -1,0 +1,42 @@
+"""Pydantic schemas for {{ model.name }}."""
+
+from typing import Optional
+from pydantic import BaseModel
+{%- if model.has_datetime %}
+from datetime import datetime
+{%- endif %}
+{%- if model.has_uuid %}
+from uuid import UUID
+{%- endif %}
+
+
+class {{ model.name }}Base(BaseModel):
+    {%- for field in model.fields if not field.primary_key %}
+    {{ field.name }}: {{ field.py_type }}{% if field.nullable %} | None = None{% endif %}
+    {%- endfor %}
+
+    model_config = {"from_attributes": True}
+
+
+class {{ model.name }}Create({{ model.name }}Base):
+    pass
+
+
+class {{ model.name }}Update(BaseModel):
+    {%- for field in model.fields if not field.primary_key %}
+    {{ field.name }}: Optional[{{ field.py_type }}] = None
+    {%- endfor %}
+
+    model_config = {"from_attributes": True}
+
+
+class {{ model.name }}Read({{ model.name }}Base):
+    {%- for field in model.fields if field.primary_key %}
+    {{ field.name }}: {{ field.py_type }}
+    {%- endfor %}
+
+    model_config = {"from_attributes": True}
+
+class {{ model.name }}List(BaseModel):
+    items: list[{{ model.name }}Read]
+    total: int

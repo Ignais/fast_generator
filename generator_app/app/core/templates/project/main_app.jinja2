@@ -1,0 +1,31 @@
+"""Main FastAPI application for {{ project.name }}."""
+
+from fastapi import FastAPI
+from app.core.config import settings
+{% for module in routers_imports %}
+from app.api.v1.endpoints.{{ module }} import router as {{ module }}_router
+{% endfor %}
+{%- for r in extra_routers %}
+from {{ r.module }} import {{ r.router_name }} as {{ r.router_name }}_{{ loop.index }}
+{%- endfor %}
+
+app = FastAPI(
+    title="{{ project.name }}",
+    description="{{ project.description }}",
+    version="0.1.0",
+)
+
+
+def include_routers(app: FastAPI) -> None:
+    {% for r in routers %}
+    app.include_router({{ r.module }}_router, prefix="{{ r.prefix }}", tags={{ r.tags }})
+    {% endfor %}
+    {%- for r in extra_routers %}
+    app.include_router({{ r.router_name }}_{{ loop.index }}, prefix="{{ r.prefix }}", tags={{ r.tags }})
+    {%- endfor %}
+
+include_routers(app)
+
+@app.get("/", tags=["Health"])
+async def root():
+    return {"message": "API {{ project.name }} is running"}

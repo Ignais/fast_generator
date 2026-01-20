@@ -1,0 +1,65 @@
+"""CRUD routes for {{ model.name }} (sync)."""
+
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+{%- if model.pk_type == "UUID" %}
+from uuid import UUID
+{%- endif %}
+
+from app.db.session import get_db
+from app.models.{{ model.module_name }} import {{ model.name }}
+from app.schemas.{{ model.module_name }} import (
+    {{ model.name }}Create,
+    {{ model.name }}Update,
+    {{ model.name }}Read,
+)
+
+router = APIRouter()
+
+@router.post("/", response_model={{ model.name }}Read, status_code=status.HTTP_201_CREATED)
+def create_{{ model.snake_name }}(payload: {{ model.name }}Create, db: Session = Depends(get_db)):
+    obj = {{ model.name }}(**payload.model_dump())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.get("/", response_model=List[{{ model.name }}Read])
+def list_{{ model.snake_name }}s(db: Session = Depends(get_db)):
+    return db.execute(select({{ model.name }})).scalars().all()
+
+
+@router.get("/{id}", response_model={{ model.name }}Read)
+def get_{{ model.snake_name }}(id: {{ model.pk_type }}, db: Session = Depends(get_db)):
+    obj = db.get({{ model.name }}, id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="{{ model.name }} not found")
+    return obj
+
+
+@router.put("/{id}", response_model={{ model.name }}Read)
+def update_{{ model.snake_name }}(id: {{ model.pk_type }}, payload: {{ model.name }}Update, db: Session = Depends(get_db)):
+    obj = db.get({{ model.name }}, id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="{{ model.name }} not found")
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(obj, field, value)
+
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_{{ model.snake_name }}(id: {{ model.pk_type }}, db: Session = Depends(get_db)):
+    obj = db.get({{ model.name }}, id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="{{ model.name }} not found")
+
+    db.delete(obj)
+    db.commit()
+    return None
