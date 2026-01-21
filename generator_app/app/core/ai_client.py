@@ -32,7 +32,7 @@ def get_ai_client():
     if provider == "openrouter":
         return OpenAI(
             api_key=settings.OPENROUTER_API_KEY,
-            base_url="https://openrouter.ai/api/v1"
+            base_url="https://api.openrouter.ai/v1"
         )
 
     # Default: OpenAI

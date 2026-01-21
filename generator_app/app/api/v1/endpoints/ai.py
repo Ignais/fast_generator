@@ -1,32 +1,31 @@
 from fastapi import APIRouter, Depends, HTTPException
 from generator_app.app.core.security import get_current_user
 from generator_app.app.models.user import User
-from generator_app.app.schemas.ai import AIGenerateResponse, AIGenerateRequest
 from generator_app.app.core.ai_client import get_ai_client, get_ai_model
-from generator_app.app.core.audit_logger import audit
-from generator_app.app.schemas.normalized_definition import NormalizedDefinition
+import json
+import logging
 from generator_app.app.workers.clean_json import extract_json
-from generator_app.app.workers.normalizer import normalize_project_definition
+
+from generator_app.app.schemas.ai import AIGenerateResponse, AIGenerateRequest
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
-client = get_ai_client()
-model = get_ai_model()
+logger = logging.getLogger("fastapi_app")
+
 
 @router.post("/generate-project", response_model=AIGenerateResponse)
 def generate_project_ai(
     payload: AIGenerateRequest,
     current_user: User = Depends(get_current_user)
 ):
-    # AUDIT: Prompt recibido
-    audit(
-        user_id=current_user.id,
-        action="AI_PROMPT_RECEIVED",
-        data={"prompt": payload.prompt}
-    )
-
-    # 1. Llamada al modelo
     try:
+        logger.info("IA: Prompt recibido para generación de proyecto")
+
+        client = get_ai_client()
+        model = get_ai_model()
+
+        logger.info(f"IA: Usando proveedor con modelo: {model}")
+
         response = client.chat.completions.create(
             model=model,
             messages=[
@@ -43,53 +42,27 @@ def generate_project_ai(
             ],
             temperature=0.2
         )
+
         raw_output = response.choices[0].message.content
+        logger.info(f"IA: Respuesta cruda recibida: {raw_output}")
 
-        # AUDIT: Respuesta cruda de la IA
-        audit(
-            user_id=current_user.id,
-            action="AI_RAW_RESPONSE",
-            data={"raw_output": raw_output}
-        )
+        # Validación JSON
+        try:
+            definition = json.loads(raw_output)
+        except Exception as e:
+            logger.error(f"IA: Error al parsear JSON: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="La IA devolvió un formato inválido. Intenta reformular el prompt."
+            )
+
+        logger.info("IA: JSON válido generado correctamente")
+
+        return {"definition_json": definition}
 
     except Exception as e:
-        audit(
-            user_id=current_user.id,
-            action="AI_ERROR",
-            data={"error": str(e)}
-        )
-        raise HTTPException(status_code=500, detail="Error al comunicarse con el modelo de IA")
-
-    # 2. Parsear JSON
-    try:
-        definition = extract_json(raw_output)
-    except Exception as e:
-        audit(
-            user_id=current_user.id,
-            action="AI_JSON_PARSE_ERROR",
-            data={"error": str(e), "raw_output": raw_output}
-        )
-        raise HTTPException(status_code=500, detail="La IA devolvió un formato inválido.")
-
-    # 3. Normalizar
-    normalized = normalize_project_definition(definition)
-
-    # AUDIT: JSON normalizado
-    audit(
-        user_id=current_user.id,
-        action="AI_JSON_NORMALIZED",
-        data=normalized
-    )
-
-    # 4. Validar con Pydantic
-    validated = NormalizedDefinition(**normalized)
-
-    # AUDIT: Warnings generados
-    audit(
-        user_id=current_user.id,
-        action="AI_WARNINGS",
-        data={"warnings": validated.warnings}
-    )
-
-    return validated
-
+        logger.error(f"IA: Error inesperado: {e}")
+        err_str = str(e)
+        if "401" in err_str or "User not found" in err_str or "'code': 401" in err_str:
+            raise HTTPException(status_code=401, detail="Error de autenticación con el proveedor de IA. Verifica la clave API.")
+        raise HTTPException(status_code=500, detail=f"Error al generar proyecto con IA: {e}")
