@@ -16,7 +16,7 @@ class PermissionUpdate(PermissionBase):
     pass
 
 
-class PermissionResponse(PermissionBase):
+class PermissionRead(PermissionBase):
     id: UUID
 
     model_config = {

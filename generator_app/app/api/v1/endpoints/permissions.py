@@ -1,49 +1,48 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from generator_app.app.core.database import get_db
+from generator_app.app.core.security import requires_permission
+from generator_app.app.services.permission_service import PermissionService
+
 from generator_app.app.schemas.permission import (
-    PermissionCreate, PermissionUpdate, PermissionResponse
+    PermissionCreate,
+    PermissionUpdate,
+    PermissionRead
 )
-from generator_app.app.models.permission import Permission
 
 router = APIRouter(prefix="/permissions", tags=["Permissions"])
 
 
-@router.post("/", response_model=PermissionResponse)
-def create_permission(payload: PermissionCreate, db: Session = Depends(get_db)):
-    perm = Permission(code=payload.code, description=payload.description)
-    db.add(perm)
-    db.commit()
-    db.refresh(perm)
-    return perm
+@router.post("/", response_model=PermissionRead)
+@requires_permission("permission:create")
+async def create_permission(
+    payload: PermissionCreate,
+    db: Session = Depends(get_db)
+):
+    return await PermissionService.create(payload, db)
 
 
-@router.get("/", response_model=list[PermissionResponse])
-def list_permissions(db: Session = Depends(get_db)):
-    return db.query(Permission).all()
+@router.get("/", response_model=list[PermissionRead])
+@requires_permission("permission:view")
+async def list_permissions(db: Session = Depends(get_db)):
+    return await PermissionService.list(db)
 
 
-@router.put("/{perm_id}", response_model=PermissionResponse)
-def update_permission(perm_id: str, payload: PermissionUpdate, db: Session = Depends(get_db)):
-    perm = db.query(Permission).filter(Permission.id == perm_id).first()
-    if not perm:
-        raise HTTPException(404, "Permission not found")
-
-    perm.code = payload.code
-    perm.description = payload.description
-
-    db.commit()
-    db.refresh(perm)
-    return perm
+@router.put("/{permission_id}", response_model=PermissionRead)
+@requires_permission("permission:update")
+async def update_permission(
+    permission_id: str,
+    payload: PermissionUpdate,
+    db: Session = Depends(get_db)
+):
+    return await PermissionService.update(permission_id, payload, db)
 
 
-@router.delete("/{perm_id}")
-def delete_permission(perm_id: str, db: Session = Depends(get_db)):
-    perm = db.query(Permission).filter(Permission.id == perm_id).first()
-    if not perm:
-        raise HTTPException(404, "Permission not found")
-
-    db.delete(perm)
-    db.commit()
-    return {"message": "Permission deleted"}
+@router.delete("/{permission_id}")
+@requires_permission("permission:delete")
+async def delete_permission(
+    permission_id: str,
+    db: Session = Depends(get_db)
+):
+    return await PermissionService.delete(permission_id, db)

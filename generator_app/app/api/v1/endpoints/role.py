@@ -1,61 +1,49 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from generator_app.app.core.database import get_db
-from generator_app.app.schemas.role import RoleCreate, RoleUpdate, RoleResponse
-from generator_app.app.models.role import Role
-from generator_app.app.models.permission import Permission
+from generator_app.app.core.security import requires_permission
+from generator_app.app.services.role_service import RoleService
+
+from generator_app.app.schemas.role import (
+    RoleCreate,
+    RoleUpdate,
+    RoleRead
+)
 
 router = APIRouter(prefix="/roles", tags=["Roles"])
 
 
-@router.post("/", response_model=RoleResponse)
-def create_role(payload: RoleCreate, db: Session = Depends(get_db)):
-    role = Role(
-        name=payload.name,
-        description=payload.description,
-        is_default=payload.is_default
-    )
-
-    if payload.permissions:
-        perms = db.query(Permission).filter(Permission.id.in_(payload.permissions)).all()
-        role.permissions = perms
-
-    db.add(role)
-    db.commit()
-    db.refresh(role)
-    return role
+@router.post("/", response_model=RoleRead)
+@requires_permission("role:create")
+async def create_role(
+    payload: RoleCreate,
+    db: Session = Depends(get_db)
+):
+    return await RoleService.create(payload, db)
 
 
-@router.get("/", response_model=list[RoleResponse])
-def list_roles(db: Session = Depends(get_db)):
-    return db.query(Role).all()
+@router.get("/", response_model=list[RoleRead])
+@requires_permission("role:view")
+async def list_roles(db: Session = Depends(get_db)):
+    return await RoleService.list(db)
 
 
-@router.put("/{role_id}", response_model=RoleResponse)
-def update_role(role_id: str, payload: RoleUpdate, db: Session = Depends(get_db)):
-    role = db.query(Role).filter(Role.id == role_id).first()
-    if not role:
-        raise HTTPException(404, "Role not found")
-
-    role.name = payload.name
-    role.description = payload.description
-    role.is_default = payload.is_default
-
-    perms = db.query(Permission).filter(Permission.id.in_(payload.permissions)).all()
-    role.permissions = perms
-
-    db.commit()
-    db.refresh(role)
-    return role
+@router.put("/{role_id}", response_model=RoleRead)
+@requires_permission("role:update")
+async def update_role(
+    role_id: str,
+    payload: RoleUpdate,
+    db: Session = Depends(get_db)
+):
+    return await RoleService.update(role_id, payload, db)
 
 
-@router.delete("/{role_id}")
-def delete_role(role_id: str, db: Session = Depends(get_db)):
-    role = db.query(Role).filter(Role.id == role_id).first()
-    if not role:
-        raise HTTPException(404, "Role not found")
-
-    db.delete(role)
-    db.commit()
-    return {"message": "Role deleted"}
+@router.post("/{role_id}/permissions/{permission_id}", response_model=RoleRead)
+@requires_permission("role:update")
+async def assign_permission_to_role(
+    role_id: str,
+    permission_id: str,
+    db: Session = Depends(get_db)
+):
+    return await RoleService.assign_permission(role_id, permission_id, db)

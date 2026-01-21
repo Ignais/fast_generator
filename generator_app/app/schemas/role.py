@@ -27,7 +27,7 @@ class RoleUpdate(RoleBase):
     permissions: List[UUID]
 
 
-class RoleResponse(RoleBase):
+class RoleRead(RoleBase):
     id: UUID
     permissions: List[PermissionBase]
 
