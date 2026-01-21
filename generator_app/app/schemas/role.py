@@ -8,8 +8,9 @@ class PermissionBase(BaseModel):
     code: str
     description: Optional[str]
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class RoleBase(BaseModel):
@@ -30,5 +31,6 @@ class RoleResponse(RoleBase):
     id: UUID
     permissions: List[PermissionBase]
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

@@ -1,7 +1,6 @@
 from sqlalchemy import Column, ForeignKey, Table
 from generator_app.app.core.database import Base
 
-
 role_permissions = Table(
     "role_permissions",
     Base.metadata,

@@ -19,5 +19,6 @@ class PermissionUpdate(PermissionBase):
 class PermissionResponse(PermissionBase):
     id: UUID
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
