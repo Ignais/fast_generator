@@ -1,20 +1,17 @@
+import json
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from generator_app.app.core.security import get_current_user
 from generator_app.app.models.user import User
 from generator_app.app.core.ai_client import get_ai_client, get_ai_model
-import json
-import logging
-from generator_app.app.workers.clean_json import extract_json
-
 from generator_app.app.schemas.ai import AIGenerateResponse, AIGenerateRequest
-
 router = APIRouter(prefix="/ai", tags=["AI"])
 
 logger = logging.getLogger("fastapi_app")
 
 
 @router.post("/generate-project", response_model=AIGenerateResponse)
-def generate_project_ai(
+async def generate_project_ai(
     payload: AIGenerateRequest,
     current_user: User = Depends(get_current_user)
 ):
@@ -26,7 +23,7 @@ def generate_project_ai(
 
         logger.info(f"IA: Usando proveedor con modelo: {model}")
 
-        response = client.chat.completions.create(
+        response = await client.async_chat_completions_create(
             model=model,
             messages=[
                 {

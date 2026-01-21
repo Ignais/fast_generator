@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 from tempfile import TemporaryDirectory
 from pathlib import Path
 import shutil
-
+from generator_app.app.core.security import requires_permission
 from generator_app.app.core.generator.code_generator import CodeGenerator
 
 router = APIRouter(prefix="/generate", tags=["Generator"])
@@ -17,6 +17,7 @@ class GenerateRequest(BaseModel):
 
 
 @router.post("/project")
+@requires_permission("project:create")
 async def generate_project(payload: GenerateRequest):
     try:
         # 1. Carpeta persistente donde guardar ZIPs

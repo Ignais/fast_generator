@@ -48,3 +48,32 @@ def get_current_user( credentials: HTTPAuthorizationCredentials = Depends(bearer
         raise HTTPException(status_code=401, detail="User not found")
 
     return user
+
+def requires_permission(permission_code: str):
+    def decorator(func):
+        async def wrapper(
+            *args,
+            current_user: User = Depends(get_current_user),
+            db: Session = Depends(get_db),
+            **kwargs
+        ):
+            role = current_user.role
+
+            if not role:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="User has no role assigned"
+                )
+
+            permission_codes = {p.code for p in role.permissions}
+
+            if permission_code not in permission_codes:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Missing permission: {permission_code}"
+                )
+
+            return await func(*args, current_user=current_user, db=db, **kwargs)
+
+        return wrapper
+    return decorator

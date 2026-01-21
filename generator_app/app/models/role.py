@@ -1,6 +1,8 @@
 from sqlalchemy import Column, String, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
+from generator_app.app.models.role_permission import role_permissions
+
 import uuid
 
 from generator_app.app.core.database import Base
