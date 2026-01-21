@@ -37,7 +37,8 @@ from generator_app.app.models import (
     module_catalog,
     role,
     permission,
-    role_permission
+    role_permission,
+    ai_model
 )
 
 target_metadata = Base.metadata

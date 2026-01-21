@@ -5,6 +5,7 @@ from generator_app.app.api.v1.endpoints.generate import router as generate_route
 from generator_app.app.api.v1.endpoints.auth import router as auth_router
 from generator_app.app.api.v1.endpoints.projects import router as project_router
 from generator_app.app.api.v1.endpoints.ai import router as ai_router
+from generator_app.app.api.v1.endpoints.ai_models import router as ai_models_router
 from generator_app.app.api.v1.endpoints.permissions import router as permissions_router
 from generator_app.app.api.v1.endpoints.role import router as roles_router
 from generator_app.app.core.database import Base, engine
@@ -34,5 +35,6 @@ app.include_router(generate_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(project_router, prefix="/api/v1")
 app.include_router(ai_router, prefix="/api/v1")
+app.include_router(ai_models_router, prefix="/api/v1")
 app.include_router(permissions_router, prefix="/api/v1")
 app.include_router(roles_router, prefix="/api/v1")
