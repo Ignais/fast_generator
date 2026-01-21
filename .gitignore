@@ -1,0 +1,28 @@
+# Entornos virtuales
+.venv/
+venv/
+
+# PyCharm / IntelliJ
+.idea/
+
+# VSCode
+.vscode/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de build
+build/
+dist/
+*.egg-info/
+
+# Configuración sensible
+.env
+.env.*
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
