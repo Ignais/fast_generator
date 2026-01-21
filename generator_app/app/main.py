@@ -7,7 +7,6 @@ from generator_app.app.api.v1.endpoints.projects import router as project_router
 from generator_app.app.api.v1.endpoints.ai import router as ai_router
 from generator_app.app.core.database import Base, engine
 
-
 def create_app():
     app = FastAPI()
 
