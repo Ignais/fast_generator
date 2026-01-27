@@ -33,7 +33,7 @@ class AIModelService:
 
     @staticmethod
     def list(db: Session) -> List[AIModel]:
-        return db.query(AIModel).all()
+        return db.query(AIModel).order_by(AIModel.created_at.asc()).all()
 
     @staticmethod
     def update(db: Session, model_id: UUID, payload: AIModelUpdate) -> AIModel | None:

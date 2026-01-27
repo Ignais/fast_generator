@@ -4,6 +4,9 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     JWT_SECRET: str
 
+    APP_URL: str
+    APP_NAME: str
+
     # OpenAI (opcional)
     OPENAI_API_KEY: str | None = None
     OPENAI_MODEL: str | None = None

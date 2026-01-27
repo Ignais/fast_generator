@@ -1,51 +1,60 @@
-import json
-import logging
 from fastapi import APIRouter, Depends, HTTPException
 from generator_app.app.core.security import get_current_user
+from generator_app.app.core.database import get_db
+from generator_app.app.schemas.ai import AIGenerateRequest, AIGenerateResponse
+from generator_app.app.services.ai_client_service import AIClientService
 from generator_app.app.models.user import User
-from generator_app.app.core.ai_client import get_ai_client, get_ai_model
-from generator_app.app.schemas.ai import AIGenerateResponse, AIGenerateRequest
-router = APIRouter(prefix="/ai", tags=["AI"])
+import json
+import logging
+
+from generator_app.app.workers import extract_ai_content, clean_json_output
 
 logger = logging.getLogger("fastapi_app")
 
+router = APIRouter(prefix="/ai", tags=["AI"])
 
+# ---------------------------------------------------------
+# ENDPOINT PRINCIPAL
+# ---------------------------------------------------------
 @router.post("/generate-project", response_model=AIGenerateResponse)
 async def generate_project_ai(
     payload: AIGenerateRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    client_service: AIClientService = Depends(lambda db=Depends(get_db): AIClientService(db))
 ):
     try:
         logger.info("IA: Prompt recibido para generación de proyecto")
 
-        client = get_ai_client()
-        model = get_ai_model()
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Eres un generador experto de proyectos FastAPI. "
+                    "Tu salida SIEMPRE debe ser un JSON válido con dos claves: "
+                    "'project' y 'models'. "
+                    "No incluyas explicaciones, solo JSON puro."
+                )
+            },
+            {"role": "user", "content": payload.prompt}
+        ]
 
-        logger.info(f"IA: Usando proveedor con modelo: {model}")
+        # Llamada con fallback
+        response = await client_service.call_with_fallback({
+            "messages": messages,
+            "temperature": 0.2
+        })
 
-        response = await client.async_chat_completions_create(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "Eres un generador experto de proyectos FastAPI. "
-                        "Tu salida SIEMPRE debe ser un JSON válido con dos claves: "
-                        "'project' y 'models'. "
-                        "No incluyas explicaciones, solo JSON puro."
-                    )
-                },
-                {"role": "user", "content": payload.prompt}
-            ],
-            temperature=0.2
-        )
-
-        raw_output = response.choices[0].message.content
+        # Extraer contenido universal
+        raw_output = extract_ai_content(response)
         logger.info(f"IA: Respuesta cruda recibida: {raw_output}")
 
-        # Validación JSON
+        # Limpiar JSON
+        cleaned = clean_json_output(raw_output)
+        logger.info(f"IA: JSON limpio: {cleaned}")
+
+        # Validar JSON
         try:
-            definition = json.loads(raw_output)
+            definition = json.loads(cleaned)
         except Exception as e:
             logger.error(f"IA: Error al parsear JSON: {e}")
             raise HTTPException(
@@ -57,6 +66,8 @@ async def generate_project_ai(
 
         return {"definition_json": definition}
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"IA: Error inesperado: {e}")
         err_str = str(e)
