@@ -100,14 +100,22 @@ class CodeGenerator:
         # Tipo de PK por defecto
         pk_type = "int"
 
-        # ------------------------------
-        # Campos básicos + FKs
-        # ------------------------------
         for f in model_def["fields"]:
-            field_type = f["type"]
+            # RELATIONSHIP FIELD (no type)
+            if "relationship" in f:
+                fields.append({
+                    **f,
+                    "sa_type": None,
+                    "py_type": None,
+                    "default": None,
+                    "foreign_key": f.get("foreign_key"),
+                })
 
-            if field_type not in TYPE_MAP_SQLALCHEMY or field_type not in TYPE_MAP_PYTHON:
-                raise ValueError(f"Tipo no soportado en modelo {model_def['name']}: {field_type}")
+                has_relationships = True
+                continue
+
+            # NORMAL FIELD
+            field_type = f["type"]
 
             sa_type = TYPE_MAP_SQLALCHEMY[field_type]
             py_type = TYPE_MAP_PYTHON[field_type]
@@ -135,7 +143,7 @@ class CodeGenerator:
                     "sa_type": sa_type,
                     "py_type": py_type,
                     "default": f.get("default"),
-                    "foreign_key": foreign_key,
+                    "foreign_key": f.get("foreign_key"),
                 }
             )
 

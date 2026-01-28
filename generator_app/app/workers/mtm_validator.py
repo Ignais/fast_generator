@@ -1,4 +1,4 @@
-def validate_many_to_many(models: list, warnings: list):
+def validate_many_to_many(models: list, warnings: list = None):
     model_names = {m["name"] for m in models}
 
     for model in models:

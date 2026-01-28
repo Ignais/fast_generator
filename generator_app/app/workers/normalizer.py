@@ -1,21 +1,128 @@
-import re
 from typing import Dict, Any, List
+import re
+
 from generator_app.app.workers.mtm_validator import validate_many_to_many
 
-def _normalize_project_block(project: Dict[str, Any]) -> Dict[str, Any]:
+
+def _infer_field_from_kv(field_name: str, field_type: str, models_keys: List[str]):
     """
-    Normaliza el bloque 'project' combinando tu lógica anterior
-    con lo que necesitamos ahora.
+    Convert simple key-value definitions into structured fields.
+    Relationship fields MUST NOT include 'type'.
     """
 
+    # List[Model] → One-to-Many
+    list_match = re.match(r"List\[(\w+)]", field_type)
+    if list_match:
+        target = list_match.group(1)
+        return None, {
+            "name": field_name,
+            "relationship": field_name,
+            "target": target,
+            "back_populates": None,
+            "foreign_key": None,
+        }
+
+    # Direct reference → Many-to-One
+    if field_type in models_keys:
+        return None, {
+            "name": field_name,
+            "relationship": field_name,
+            "target": field_type,
+            "back_populates": None,
+            "foreign_key": None,
+        }
+
+    # Normal field
+    if field_type == "integer":
+        field_type = "int"
+    elif field_type == "string":
+        field_type = "str"
+
+    return {
+        "name": field_name,
+        "type": field_type,
+        "primary_key": field_name == "id",
+    }, None
+
+
+def _normalize_models_block(models: Any) -> List[Dict[str, Any]]:
+    normalized_models: List[Dict[str, Any]] = []
+
+    # Dict format: {"User": {...}}
+    if isinstance(models, dict):
+        models_dict = models
+    else:
+        models_dict = {}
+
+    model_names = list(models_dict.keys())
+
+    for model_name, model_body in models_dict.items():
+
+        fields_struct: List[Dict[str, Any]] = []
+        relationships_struct: List[Dict[str, Any]] = []
+
+        # Case: already structured
+        if isinstance(model_body, dict) and "fields" in model_body:
+            for f in model_body["fields"]:
+                # Clean invalid relationship type
+                if f.get("type") == "relationship":
+                    f.pop("type", None)
+
+                if "relationship" in f:
+                    relationships_struct.append(f)
+                else:
+                    fields_struct.append(f)
+
+            normalized_models.append({
+                "name": model_name,
+                "table_name": model_name.lower(),
+                "fields": fields_struct,
+                "relationships": relationships_struct,
+                "many_to_many": [],
+            })
+            continue
+
+        # Case: AI simple dict
+        if not isinstance(model_body, dict):
+            continue
+
+        for field_name, field_type in model_body.items():
+            if not isinstance(field_type, str):
+                continue
+
+            field_def, rel_def = _infer_field_from_kv(field_name, field_type, model_names)
+
+            if field_def:
+                fields_struct.append(field_def)
+            if rel_def:
+                relationships_struct.append(rel_def)
+
+        normalized_models.append({
+            "name": model_name,
+            "table_name": model_name.lower(),
+            "fields": fields_struct,
+            "relationships": relationships_struct,
+            "many_to_many": [],
+        })
+
+    # Validate M2M
+    warnings = []
+    validate_many_to_many(normalized_models, warnings)
+
+    return normalized_models
+
+
+def normalize_project_definition(definition: Dict[str, Any]) -> Dict[str, Any]:
+    project = definition.get("project", {}) or {}
+    models = definition.get("models", {}) or {}
+
+    normalized_models = _normalize_models_block(models)
+
     normalized_project = {
-        "project_name": project.get("project_name")
-            or project.get("name")
-            or project.get("app_name")
-            or "my_app",
+        "project_name": project.get("project_name") or project.get("name") or "my_app",
         "version": project.get("version", "1.0.0"),
         "description": project.get("description", "Generated FastAPI project"),
-        "mode": project.get("mode", "sync"),  # tu CodeGenerator usa 'sync' / 'async'
+        "mode": project.get("mode", "sync"),
         "backend": project.get("backend", "fastapi"),
         "frontend": project.get("frontend", "none"),
         "dependencies": project.get("dependencies", ["fastapi", "uvicorn"]),
@@ -27,158 +134,8 @@ def _normalize_project_block(project: Dict[str, Any]) -> Dict[str, Any]:
         },
     }
 
-    # dependencies como dict → lista
-    deps = normalized_project["dependencies"]
-    if isinstance(deps, dict):
-        # si vienen con versiones, las mantenemos en formato "pkg==version"
-        normalized_project["dependencies"] = [
-            f"{name}=={version}" for name, version in deps.items()
-        ]
-
-    # routes como lista de strings → lista de dicts
-    routes = normalized_project["routes"]
-    if isinstance(routes, list) and all(isinstance(r, str) for r in routes):
-        normalized_project["routes"] = [
-            {
-                "path": f"/{r}",
-                "methods": ["GET"],
-                "description": f"Auto route for {r}",
-            }
-            for r in routes
-        ]
-
-    return normalized_project
-
-
-def _infer_field_from_kv(field_name: str, field_type: str, models_keys: List[str]) -> Dict[str, Any]:
-    """
-    Convierte un par clave-valor del estilo:
-      "id": "int"
-      "projects": "List[Project]"
-      "user": "User"
-    en un field estructurado para CodeGenerator.
-    """
-
-    # List[Model] → relación (lado "uno" o "muchos")
-    list_match = re.match(r"List\[(\w+)]", field_type)
-    if list_match:
-        target = list_match.group(1)
-        return {
-            "name": field_name,
-            "type": "relationship",
-            "relationship": field_name,
-            "target": target,
-            "back_populates": None,  # se puede completar luego si quieres
-        }
-
-    # Campo que apunta a otro modelo → relación
-    if field_type in models_keys:
-        return {
-            "name": field_name,
-            "type": "relationship",
-            "relationship": field_name,
-            "target": field_type,
-            "back_populates": None,
-        }
-
-    # Campo normal
-    # Ajuste de tipos "integer"/"string" → "int"/"str"
-    if field_type == "integer":
-        field_type = "int"
-    elif field_type == "string":
-        field_type = "str"
-
-    return {
-        "name": field_name,
-        "type": field_type,
-        "primary_key": field_name == "id",
-    }
-
-
-def _normalize_models_block(models: Any) -> List[Dict[str, Any]]:
-    """
-    Normaliza el bloque 'models' para que siempre sea una lista de modelos
-    con estructura compatible con CodeGenerator.
-    """
-
-    normalized_models: List[Dict[str, Any]] = []
-
-    # Caso 1: viene como dict → {"User": {...}, "Project": {...}}
-    if isinstance(models, dict):
-        models_dict = models
-    # Caso 2: ya viene como lista de modelos
-    elif isinstance(models, list):
-        # si ya vienen con "name" y "fields", los respetamos
-        if all(isinstance(m, dict) and "name" in m for m in models):
-            return models
-        # si vienen como lista pero sin "name", no podemos inferir bien
-        models_dict = {}
-    else:
-        models_dict = {}
-
-    model_names = list(models_dict.keys())
-
-    for model_name, model_body in models_dict.items():
-        # si ya viene en formato estructurado, lo respetamos
-        if isinstance(model_body, dict) and "fields" in model_body:
-            # normalizar tipos básicos dentro de fields
-            fields = model_body.get("fields", [])
-            for f in fields:
-                t = f.get("type")
-                if t == "integer":
-                    f["type"] = "int"
-                elif t == "string":
-                    f["type"] = "str"
-            normalized_models.append(model_body)
-            continue
-
-        # caso IA: {"id": "int", "name": "str", "projects": "List[Project]"}
-        if not isinstance(model_body, dict):
-            continue
-
-        fields_struct: List[Dict[str, Any]] = []
-
-        for field_name, field_type in model_body.items():
-            if not isinstance(field_type, str):
-                continue
-            field_def = _infer_field_from_kv(field_name, field_type, model_names)
-            fields_struct.append(field_def)
-
-        normalized_models.append(
-            {
-                "name": model_name,
-                "table_name": model_name.lower(),
-                "fields": fields_struct,
-                "routes": {
-                    "generate_crud": True,
-                    "prefix": f"/{model_name.lower()}s",
-                    "tags": [model_name],
-                },
-                "many_to_many": [],
-            }
-        )
-
-    # Validación opcional de many-to-many si ya existiera estructura
-    validate_many_to_many(normalized_models)
-
-    return normalized_models
-
-
-def normalize_project_definition(definition: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Normalizador v2:
-    - combina tu lógica anterior
-    - añade transformación estructural para el JSON de la IA
-    - deja listo para CodeGenerator
-    """
-
-    project = definition.get("project", {}) or {}
-    models = definition.get("models", {}) or {}
-
-    normalized_project = _normalize_project_block(project)
-    normalized_models = _normalize_models_block(models)
-
     return {
         "project": normalized_project,
         "models": normalized_models,
+        "warnings": [],
     }

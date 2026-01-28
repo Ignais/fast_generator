@@ -67,8 +67,13 @@ class ProjectListItem(BaseModel):
     }
 
 class GenerateRequest(BaseModel):
-    project: Dict[str, Any]
-    models: Dict[str, Any]
+    # Manual / structured mode
+    project: Optional[Dict[str, Any]] = None
+    models: Optional[Dict[str, Any]] = None
+
+    # AI raw mode (what you showed as definition_json)
+    definition_json: Optional[Dict[str, Any]] = None
+
 
     class Config:
         json_schema_extra = {
