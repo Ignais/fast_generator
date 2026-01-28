@@ -1,54 +1,50 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Body, Depends
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any
-from tempfile import TemporaryDirectory
 from pathlib import Path
+from tempfile import TemporaryDirectory
 import shutil
-from generator_app.app.core.security import requires_permission
+
+from generator_app.app.schemas.project import GenerateRequest
+from generator_app.app.workers.normalizer import normalize_project_definition
 from generator_app.app.core.generator.code_generator import CodeGenerator
+from generator_app.app.core.security import require_permission
 
-router = APIRouter(prefix="/generate", tags=["Generator"])
+router = APIRouter(prefix="/generator", tags=["Generator"])
 
-
-class GenerateRequest(BaseModel):
-    project: Dict[str, Any]
-    models: List[Dict[str, Any]]
-
-
-@router.post("/project")
-@requires_permission("project:create")
-async def generate_project(payload: GenerateRequest):
+@router.post("/",
+             dependencies=[Depends(require_permission("project:create"))])
+async def generate_project(
+    payload: GenerateRequest = Body(...)
+):
     try:
-        # 1. Carpeta persistente donde guardar ZIPs
+        # Directorios base
         BASE_DIR = Path(__file__).resolve().parents[3]
         DOWNLOADS_DIR = BASE_DIR / "downloads"
         DOWNLOADS_DIR.mkdir(exist_ok=True)
 
-        project_def = payload.project 
-        models_def = payload.models or [] # nunca insertar {}
-        if not isinstance(project_def, dict): 
-            raise ValueError("El campo 'project' debe ser un objeto JSON") 
+        # Normalizar JSON de la IA
+        normalized = normalize_project_definition({
+            "project": payload.project,
+            "models": payload.models,
+        })
 
-        if not isinstance(models_def, list): 
-            raise ValueError("El campo 'models' debe ser una lista")
+        project_def = normalized["project"]
+        models_def = normalized["models"]
 
-        # 2. Carpeta temporal para generar el proyecto
+        # Carpeta temporal
         with TemporaryDirectory() as tmpdir:
             tmpdir_path = Path(tmpdir)
-
             output_dir = tmpdir_path / "generated_project"
             output_dir.mkdir(parents=True, exist_ok=True)
 
-            # 3. Ruta de plantillas
             templates_dir = BASE_DIR / "core" / "templates"
 
-            # 4. Generar el proyecto
+            # Generar proyecto
             gen = CodeGenerator(templates_dir=templates_dir, output_dir=output_dir)
-            gen.generate_project_structure(payload.project, payload.models)
+            gen.generate_project_structure(project_def, models_def)
 
-            # 5. Crear ZIP en carpeta persistente
-            zip_name = f"{payload.project.project_name}.zip"
+            # Crear ZIP
+            zip_name = f"{project_def['project_name']}.zip"
             final_zip_path = DOWNLOADS_DIR / zip_name
 
             shutil.make_archive(final_zip_path.with_suffix(""), "zip", output_dir)
@@ -61,4 +57,3 @@ async def generate_project(payload: GenerateRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating project: {e}")
-

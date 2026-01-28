@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 
 
 # -----------------------------
@@ -65,3 +65,25 @@ class ProjectListItem(BaseModel):
     model_config = {
         "from_attributes": True
     }
+
+class GenerateRequest(BaseModel):
+    project: Dict[str, Any]
+    models: Dict[str, Any]
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "project": {
+                    "project_name": "my_app",
+                    "language": "python"
+                },
+                "models": {
+                    "User": {
+                        "fields": {
+                            "id": "int",
+                            "name": "str"
+                        }
+                    }
+                }
+            }
+        }

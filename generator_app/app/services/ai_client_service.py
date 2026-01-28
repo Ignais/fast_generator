@@ -43,7 +43,7 @@ class AIClientService:
         default_headers = {}
         if provider == "openrouter":
             default_headers = {
-                "HTTP-Referer": settings.APP_URL or "http://localhost:8000",
+                "HTTP-Referer": settings.APP_URL or "http://localhost:8001",
                 "X-Title": settings.APP_NAME or "FastGenerator",
             }
 

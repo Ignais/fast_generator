@@ -49,31 +49,31 @@ def get_current_user( credentials: HTTPAuthorizationCredentials = Depends(bearer
 
     return user
 
-def requires_permission(permission_code: str):
-    def decorator(func):
-        async def wrapper(
-            *args,
-            current_user: User = Depends(get_current_user),
-            db: Session = Depends(get_db),
-            **kwargs
-        ):
-            role = current_user.role
+from fastapi import Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
-            if not role:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="User has no role assigned"
-                )
+def require_permission(permission_code: str):
+    async def dependency(
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ):
+        role = current_user.role
 
-            permission_codes = {p.code for p in role.permissions}
+        if not role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User has no role assigned"
+            )
 
-            if permission_code not in permission_codes:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Missing permission: {permission_code}"
-                )
+        permission_codes = {p.code for p in role.permissions}
 
-            return await func(*args, current_user=current_user, db=db, **kwargs)
+        if permission_code not in permission_codes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing permission: {permission_code}"
+            )
 
-        return wrapper
-    return decorator
+        return True  # o current_user si quieres reutilizarlo
+
+    return dependency
+

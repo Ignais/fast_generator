@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 
 from generator_app.app.core.database import get_db
 from generator_app.app.core.security import get_current_user
-from generator_app.app.core.security import requires_permission
 
 from generator_app.app.services.auth_service import AuthService
 from generator_app.app.services.user_service import UserService
@@ -14,7 +13,6 @@ from generator_app.app.models.user import User
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 @router.post("/register", response_model=UserRead)
-@requires_permission("user:create")
 async def register(
     payload: UserCreate,
     db: Session = Depends(get_db),
