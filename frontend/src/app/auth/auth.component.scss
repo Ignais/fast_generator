@@ -1,7 +1,115 @@
+@use "sass:color";
+
+// Colors
+$fastapi-green: #059669;
+$django-green: #0C4B33;
+$dark-slate: #0f172a;
+$light-text: #f8fafc;
+$card-bg: #1e293b;
+
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: $dark-slate;
+  color: $light-text;
+  padding: 1rem;
+}
+
 .auth-card {
-  max-width: 680px;
+  width: 100%;
+  max-width: 480px;
+  background-color: $card-bg;
+  border: 1px solid color.adjust($fastapi-green, $alpha: -0.7);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+
+  .card-body {
+    padding: 2.5rem;
+  }
 }
 
 .card-title {
+  font-weight: 700;
+  color: $fastapi-green;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+// Tabs
+.nav-tabs {
+  border-bottom: 2px solid color.adjust($light-text, $alpha: -0.9);
+  
+  .nav-link {
+    color: color.adjust($light-text, $alpha: -0.4);
+    border: none;
+    background: transparent;
+    font-weight: 600;
+    transition: color 0.2s;
+    cursor: pointer;
+    
+    &:hover {
+      color: $fastapi-green;
+      border: none;
+    }
+
+    &.active {
+      color: $fastapi-green;
+      background: transparent;
+      border-bottom: 2px solid $fastapi-green;
+    }
+  }
+}
+
+// Forms
+.form-label {
+  color: color.adjust($light-text, $alpha: -0.2);
+  font-size: 0.9rem;
+  margin-top: 1rem;
+}
+
+.form-control {
+  background-color: color.adjust($dark-slate, $lightness: 5%);
+  border: 1px solid color.adjust($light-text, $alpha: -0.8);
+  color: $light-text;
+  padding: 0.75rem;
+  
+  &:focus {
+    background-color: color.adjust($dark-slate, $lightness: 8%);
+    border-color: $fastapi-green;
+    box-shadow: 0 0 0 3px color.adjust($fastapi-green, $alpha: -0.8);
+  }
+
+  &::placeholder {
+    color: color.adjust($light-text, $alpha: -0.6);
+  }
+}
+
+// Buttons
+.btn {
+  margin-top: 1.5rem;
+  padding: 0.75rem;
   font-weight: 600;
+  border: none;
+  
+  &.btn-primary, &.btn-success {
+    background-color: $fastapi-green;
+    
+    &:hover {
+      background-color: color.adjust($fastapi-green, $lightness: 5%);
+    }
+    
+    &:disabled {
+      background-color: color.scale($fastapi-green, $saturation: -50%); 
+      cursor: not-allowed;
+    }
+  }
+}
+
+.alert-danger {
+  background-color: color.adjust(#ef4444, $alpha: -0.8);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  font-size: 0.9rem;
 }

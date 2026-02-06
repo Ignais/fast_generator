@@ -1,7 +1,83 @@
-.home {
-  padding: 1.5rem;
+// Colors
+$fastapi-green: #059669;
+$django-green: #0c4b33;
+$dark-slate: #0f172a;
+$light-text: #f8fafc;
+
+.home-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: $dark-slate;
+  color: $light-text;
 }
 
-h2 {
-  margin: 0 0 0.5rem 0;
+.hero-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 4rem 2rem;
+  background: linear-gradient(135deg, $dark-slate 0%, darken($django-green, 15%) 100%);
+
+  h1 {
+    font-size: 3.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    background: -webkit-linear-gradient(right, $fastapi-green, #34d399);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  p {
+    font-size: 1.25rem;
+    max-width: 600px;
+    margin-bottom: 2.5rem;
+    color: #cbd5e1;
+    line-height: 1.6;
+  }
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 1.5rem;
+
+  .btn-primary-custom {
+    background-color: $fastapi-green;
+    border: none;
+    padding: 0.8rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    color: white;
+    text-decoration: none;
+
+    &:hover {
+      background-color: lighten($fastapi-green, 5%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba($fastapi-green, 0.4);
+    }
+  }
+
+  .btn-outline-custom {
+    background-color: transparent;
+    border: 2px solid $django-green;
+    padding: 0.8rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    color: $light-text;
+    text-decoration: none;
+
+    &:hover {
+      background-color: $django-green;
+      border-color: $django-green;
+      transform: translateY(-2px);
+    }
+  }
 }
