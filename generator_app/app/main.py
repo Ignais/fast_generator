@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from generator_app.app.core.logging_config import logger
 from generator_app.app.api.v1.endpoints.generate import router as generate_router
 from generator_app.app.api.v1.endpoints.auth import router as auth_router
@@ -12,6 +13,21 @@ from generator_app.app.core.database import Base, engine
 
 def create_app():
     app = FastAPI()
+
+    # Configurar CORS
+    origins = [
+        "http://localhost:4200",
+        "http://localhost:8000",
+        "http://localhost:8080",
+    ]
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     # Crear tablas si no existen
     Base.metadata.create_all(bind=engine)
